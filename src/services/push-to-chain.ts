@@ -2,6 +2,7 @@ import { Api, JsonRpc, JsSignatureProvider } from "@proton/js";
 import {betxpr} from "../interfaces/betxpr";
 import {Tables} from "../interfaces/db_scheme";
 import {xtokens} from "../interfaces/xtokens";
+import dayjs from "dayjs";
 
 export function generateTransaction(
   predictionIdea: Tables<"prediction_ideas">
@@ -19,8 +20,8 @@ export function generateTransaction(
       image: predictionIdea.image!,
       limitToAccount: [],
       owner: "betagent",
-      start: predictionIdea.start, //Need timestemp conversion
-      end: predictionIdea.end, //Need timestemp conversion
+      start: dayjs(predictionIdea.start).unix()*1000, //Need timestemp conversion
+      end: dayjs(predictionIdea.end).unix()*1000, //Need timestemp conversion
       stake: "10.0000 XPR",
       resolvingRules: predictionIdea.resolving_rules!,
       resolvingUrl: predictionIdea.resolving_url!,
