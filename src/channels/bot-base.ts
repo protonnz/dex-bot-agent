@@ -47,6 +47,7 @@ class BotBase {
       if (messageReaction) {
         const reaction = messageReaction.new_reaction[messageReaction.new_reaction.length - 1];
         if (!reaction) return;
+        
         if (reaction.type == 'emoji') {
           const emoji = (reaction as any).emoji;
           if (emoji) {
