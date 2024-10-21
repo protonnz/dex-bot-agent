@@ -1,5 +1,6 @@
-import { SupabaseClient } from "@supabase/supabase-js";
+import pkg from "@supabase/supabase-js";
 import { Database } from "../interfaces/db_scheme";
+const { SupabaseClient } = pkg;
 
 export const supabase = new SupabaseClient<Database>(
   process.env.SUPABASE_URL!,
