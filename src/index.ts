@@ -46,7 +46,7 @@ const main = async () => {
   myBot.addReactionCallback(`👀`,(ctx)=>ctx.reply('Short dick yourself'))
   myBot.startPolling();
   setTimeout(() => {
-    myBot.sendMessage(-4505336166, `On launch message`);
+    myBot.sendMessage(-4505336166, `is this good ?`);
     
   },5000)
 
