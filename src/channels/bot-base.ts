@@ -1,5 +1,6 @@
-import { Telegraf, Context, Scenes, session } from 'telegraf';
+import { Telegraf, Context, Scenes, session, Markup } from 'telegraf';
 import { Update } from 'telegraf/typings/core/types/typegram';
+import { inlineKeyboard } from 'telegraf/typings/markup';
 import { BaseScene, Stage } from 'telegraf/typings/scenes';
 
 
@@ -98,7 +99,18 @@ class BotBase {
   // Programmatically send a message to a specific chat ID
   public async sendMessage(chatId: number | string, message: string): Promise<void> {
     try {
-      await this.bot.telegram.sendMessage(chatId, message);
+      const labelDataPairs = [
+        ["👍", "Upvote"],
+        ["👎", "Downvote"],
+      ];
+      const inlineKeyboard = Markup.inlineKeyboard([
+        [
+          Markup.button.callback("👍", 'upvote'),
+          Markup.button.callback('👎', 'downvote'),
+        ]
+        
+      ]);
+      await this.bot.telegram.sendMessage(chatId, message,{reply_markup:inlineKeyboard.reply_markup});
       console.log(`Message sent to chat: ${chatId}`);
     } catch (error) {
       console.error(`Failed to send message: ${error}`);
