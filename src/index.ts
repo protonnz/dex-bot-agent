@@ -1,103 +1,43 @@
-// import { getConfig, getLogger } from './utils';
-// import * as dexapi from './dexapi';
-// import * as dexrpc from './dexrpc';
-// import { getStrategy } from './strategies';
-// import readline from 'readline';
-// import { postSlackMsg } from './slackapi';
-
 import 'dotenv/config'
 import { ValidationBot } from "./channels/validation-bot";
 import { Tables } from "./interfaces/db_scheme";
 import {supabase} from "./utils/supabase-client";
 
-console.log(process.env)
-// function delay(ms: number) {
-//   return new Promise((resolve) => {
-//     setTimeout(resolve, ms);
-//   });
-// }
-
-// const execTrade = async () => {
-//   console.log('Bot is live');
-//   await currentStrategy.trade()
-//   await delay(config.tradeIntervalMS)
-//   execTrade()
-// }
-
-// const execSlack = async () => {
-//   await postSlackMsg()
-//   await delay(config.slackIntervalMS)
-//   execSlack()
-// }
-// const config = getConfig();
-// const currentStrategy = getStrategy(config.strategy);
-// currentStrategy.initialize(config[config.strategy]);
-
-/**
- * Main
- * This sets up the logic for the application, the looping, timing, and what to do on exit.
- */
 const main = async () => {
 
   const myBot = new ValidationBot(
     "7834300313:AAF_vpt--Miz2HqfWnhTsy3Zpx1JRp-_htw"
   );
-  myBot.addReactionCallback(`🔥`,(ctx)=>ctx.reply('Whats funny ?'))
-  myBot.addReactionCallback(`👀`,(ctx)=>ctx.reply('Short dick yourself'))
+  myBot.registerVotingAction({
+    text: "👍", callback_data: "upvote", callback: async (ctx, id) => {
+      if (!ctx.callbackQuery) return;
+      if (!ctx.callbackQuery.from.username) return; 
+      const { data, error } = await supabase.rpc('add_upvoter', { p_id: id, p_upvoter: ctx.callbackQuery.from.username });
+  }})
+  myBot.registerVotingAction({
+    text: "👎", callback_data: "downvote", callback: async (ctx, id) => {
+      if (!ctx.callbackQuery) return;
+      if (!ctx.callbackQuery.from.username) return; 
+      const { data, error } = await supabase.rpc('add_downvoter', { p_id: id, p_downvoter: ctx.callbackQuery.from.username });
+  }})
+  
   myBot.startPolling();
-  setTimeout(() => {
-    myBot.sendMessage(-4505336166, `is this good ?`);
-    
-  },5000)
+  
 
   supabase.channel("predictions").on(
     "postgres_changes",
     { event: "*", schema: "public", table: "prediction_ideas" },
     payload => {
-
-      console.log('change')
       const newPred = payload.new as Tables<'prediction_ideas'>;
-      myBot.sendMessage(-4505336166, JSON.stringify(newPred));
+      const message = `New Prediction\n **${newPred.title!}** - ${newPred.start}`;
+      if (Object.keys(payload.old).length === 0) myBot.sendPrediction(-4505336166, message, newPred.image!, newPred.id);
+      if (newPred.upvoters && newPred.upvoters.length >= 3)myBot.sendMessage(-4505336166, `${newPred.title} will be pushed on chain`);
+      if (newPred.downvoters && newPred.downvoters.length >= 3)myBot.sendMessage(-4505336166, `${newPred.title} will DESTROYED !!!`);
 
 
     }
   ).subscribe();
-  // const logger = getLogger();
-
-  // await dexapi.initialize();
-
-  // try {
-  //   process.stdin.resume();
-  //   if (config.cancelOpenOrdersOnExit) {
-  //     if (process.platform === "win32") {
-  //       var rl = readline.createInterface({
-  //         input: process.stdin,
-  //         output: process.stdout
-  //       });
-
-  //       rl.on("SIGINT", function () {
-  //         process.emit("SIGINT");
-  //       });
-  //     }
-
-  //     async function signalHandler() {
-  //       await dexrpc.cancelAllOrders();
-  //       process.exit();
-  //     }
-
-  //     process.on('SIGINT', signalHandler)
-  //     process.on('SIGTERM', signalHandler)
-  //     process.on('SIGQUIT', signalHandler)
-  //   }
-
-  //   await currentStrategy.trade()
-  //   logger.info(`Waiting for few seconds before fetching the placed orders`);
-  //   await delay(15000)
-  //   execTrade()
-  //   execSlack()
-  // } catch (error) {
-  //   logger.error((error as Error).message);
-  // }
+  
 };
 
 // start it all up
