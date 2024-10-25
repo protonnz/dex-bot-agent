@@ -14,6 +14,7 @@ export type Database = {
           answers: string[] | null
           category: number | null
           created_at: string
+          downvoters: string[] | null
           end: string | null
           id: number
           image: string | null
@@ -23,11 +24,13 @@ export type Database = {
           slug: string | null
           start: string | null
           title: string | null
+          upvoters: string[] | null
         }
         Insert: {
           answers?: string[] | null
           category?: number | null
           created_at?: string
+          downvoters?: string[] | null
           end?: string | null
           id?: number
           image?: string | null
@@ -37,11 +40,13 @@ export type Database = {
           slug?: string | null
           start?: string | null
           title?: string | null
+          upvoters?: string[] | null
         }
         Update: {
           answers?: string[] | null
           category?: number | null
           created_at?: string
+          downvoters?: string[] | null
           end?: string | null
           id?: number
           image?: string | null
@@ -51,6 +56,7 @@ export type Database = {
           slug?: string | null
           start?: string | null
           title?: string | null
+          upvoters?: string[] | null
         }
         Relationships: []
       }
@@ -59,7 +65,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      add_downvoter: {
+        Args: {
+          p_id: number
+          p_downvoter: string
+        }
+        Returns: undefined
+      }
+      add_upvoter: {
+        Args: {
+          p_id: number
+          p_upvoter: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

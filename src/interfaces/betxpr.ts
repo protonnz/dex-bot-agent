@@ -14,7 +14,38 @@ type betxpr_Actions = {
     answers:number;
     quantity:number
   },
-  
+  "dev.accrst": {
+    
+  },
+  "dev.clrbal": {
+    account:string;
+    symbol:string
+  },
+
+  "dev.pollsz": {
+    predictionKey:number;
+    count:number
+  },
+  "dev.prdrmv": {
+    predictionKey:number
+  },
+  "dev.prdsts": {
+    predictionKey:number;
+    status:string
+  },
+  "dev.relacc": {
+    pollKey:number
+  },
+  "dev.revxpr": {
+    
+  },
+  "dev.rstprds": {
+    predictionKey:number
+  },
+  "dev.upimg": {
+    predictionKey:number;
+    image:string
+  },
   "gov.clsepoll": {
     predictionKey:number
   },
@@ -92,7 +123,52 @@ data}),
 	name:'bet.sub',
 	authorization,
 data}),
- 
+ dev_accrst:(authorization:Authorization[],data:betxpr_Actions['dev.accrst']):XPRAction<'dev.accrst'>=>({
+	account:'betxpr',
+	name:'dev.accrst',
+	authorization,
+data}),
+ dev_clrbal:(authorization:Authorization[],data:betxpr_Actions['dev.clrbal']):XPRAction<'dev.clrbal'>=>({
+	account:'betxpr',
+	name:'dev.clrbal',
+	authorization,
+data}),
+
+ dev_pollsz:(authorization:Authorization[],data:betxpr_Actions['dev.pollsz']):XPRAction<'dev.pollsz'>=>({
+	account:'betxpr',
+	name:'dev.pollsz',
+	authorization,
+data}),
+ dev_prdrmv:(authorization:Authorization[],data:betxpr_Actions['dev.prdrmv']):XPRAction<'dev.prdrmv'>=>({
+	account:'betxpr',
+	name:'dev.prdrmv',
+	authorization,
+data}),
+ dev_prdsts:(authorization:Authorization[],data:betxpr_Actions['dev.prdsts']):XPRAction<'dev.prdsts'>=>({
+	account:'betxpr',
+	name:'dev.prdsts',
+	authorization,
+data}),
+ dev_relacc:(authorization:Authorization[],data:betxpr_Actions['dev.relacc']):XPRAction<'dev.relacc'>=>({
+	account:'betxpr',
+	name:'dev.relacc',
+	authorization,
+data}),
+ dev_revxpr:(authorization:Authorization[],data:betxpr_Actions['dev.revxpr']):XPRAction<'dev.revxpr'>=>({
+	account:'betxpr',
+	name:'dev.revxpr',
+	authorization,
+data}),
+ dev_rstprds:(authorization:Authorization[],data:betxpr_Actions['dev.rstprds']):XPRAction<'dev.rstprds'>=>({
+	account:'betxpr',
+	name:'dev.rstprds',
+	authorization,
+data}),
+ dev_upimg:(authorization:Authorization[],data:betxpr_Actions['dev.upimg']):XPRAction<'dev.upimg'>=>({
+	account:'betxpr',
+	name:'dev.upimg',
+	authorization,
+data}),
  gov_clsepoll:(authorization:Authorization[],data:betxpr_Actions['gov.clsepoll']):XPRAction<'gov.clsepoll'>=>({
 	account:'betxpr',
 	name:'gov.clsepoll',
