@@ -10,11 +10,13 @@ type InteractionButton = InlineKeyboardButton.CallbackButton & {
 export class ValidationBot extends BotBase {
 
   private inlineKeyboardInteractions:InteractionButton[] = [];
+  private predictionNavigationCallback:(dataId:string)=>void = (dataId:string)=>{};
 
   constructor(token: string) {
     super({ token });
     this.addCustomCommands();
     this.addVotingAction();
+    this.addPredictionsNavigation();
   }
 
   private addCustomCommands() {
@@ -32,18 +34,42 @@ export class ValidationBot extends BotBase {
   private addVotingAction() { 
 
     this.bot.on('callback_query', (ctx) => {
-      console.log(ctx.callbackQuery.from.username)
+      console.log(ctx.callbackQuery.from.username,'voting')
       const data = (ctx.callbackQuery as any).data;
       const raw = data.split(':')
       const action = raw[0];
       const id = raw[1];
-
-      const existingKeyboardInteraction = this.inlineKeyboardInteractions.find((keyboardInteraction:InteractionButton) => keyboardInteraction.callback_data.startsWith(action));
+      if (action == 'upvote' || action == 'downvote') {
+        const existingKeyboardInteraction = this.inlineKeyboardInteractions.find((keyboardInteraction:InteractionButton) => keyboardInteraction.callback_data.startsWith(action));
       if (!existingKeyboardInteraction) return 
-      existingKeyboardInteraction.callback(ctx,parseInt(id));
+      existingKeyboardInteraction.callback(ctx,parseInt(id));  
+      };
+      if (action == 'preds') {
+        this.predictionNavigationCallback(id)
+        
+      }
+      
       //ctx.reply(`${ctx.callbackQuery.from.username} ${action} ${id}`)
     })
 
+  }
+  
+  private addPredictionsNavigation() { 
+
+    this.bot.on('callback_query', (ctx) => {
+      console.log(ctx.callbackQuery.from.username,'cb')
+      const data = (ctx.callbackQuery as any).data;
+      const raw = data.split(':')
+      const action = raw[0];
+      const id = raw[1];
+      console.log(raw);
+     
+    })
+
+  }
+
+  public setPredictionNavigationCallback(callback: (dataId:string) => {}): void {
+    this.predictionNavigationCallback = callback
   }
 
   public registerVotingAction(triggerable: InteractionButton) {
@@ -60,7 +86,23 @@ export class ValidationBot extends BotBase {
         this.inlineKeyboardInteractions.map((interaction)=>{return {...interaction,callback_data:`${interaction.callback_data}:${dataId}`}}) 
       ]);
       console.log(`Message sent to chat: ${chatId}`);
-      return this.bot.telegram.sendPhoto(chatId, {url:`https://betxpr.mypinata.cloud/ipfs/${url}`},{reply_markup:inlineKeyboard.reply_markup,caption:message});
+      return this.bot.telegram.sendPhoto(chatId, {url:url},{reply_markup:inlineKeyboard.reply_markup,caption:message,parse_mode:'HTML'});
+    } catch (error) {
+      console.error(`Failed to send message: ${error}`);
+      return 
+    }
+  }
+  
+  public async sendPredictions(chatId: number | string, predictions: InlineKeyboardButton.CallbackButton[]): Promise<Message.TextMessage | undefined> {
+    try {
+      
+      const buttons = predictions.map((prediction) => { return [{...prediction}] })
+      const inlineKeyboard = Markup.inlineKeyboard(
+        buttons
+        
+      );
+      console.log(`Message sent to chat: ${chatId}`);
+      return this.bot.telegram.sendMessage(chatId, 'Last predictions',{reply_markup:inlineKeyboard.reply_markup});
     } catch (error) {
       console.error(`Failed to send message: ${error}`);
       return 
