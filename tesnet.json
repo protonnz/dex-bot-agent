@@ -1,0 +1,9 @@
+
+[33mNote:[39m Please store private key or mnemonic securely!
+{
+  "public": "PUB_K1_8WJwxGCNmDAPP2xkT7bQxohxznFGmzQWsUebEtFvPpPiHdQ2Lu",
+  "private": "PVT_K1_2rM5yYyY3KXqwJcZbQMkrHmJzpS36kKTaXHHFaGqjFnjmERqsX",
+  "mnemonic": "chunk vapor ankle shaft tiger oven main maze fluid girl exit type"
+}
+[32mSuccess:[39m Added new private key for public key: PUB_K1_8WJwxGCNmDAPP2xkT7bQxohxznFGmzQWsUebEtFvPpPiHdQ2Lu
+
