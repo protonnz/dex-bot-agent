@@ -14,7 +14,11 @@
         "typeRoots": [
             "./src/types",
             "./node_modules/@types",
-        ]
+        ],
+        
+        "allowSyntheticDefaultImports": true,
+        
+        
     },
     "ts-node": {
         "esm": true,
