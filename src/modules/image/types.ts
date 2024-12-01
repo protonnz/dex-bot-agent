@@ -5,6 +5,8 @@ export interface ImageGenerationParams {
   num_inference_steps?: number;
   guidance_scale?: number;
   seed?: number;
+  aspect_ratio?: string;
+  safety_tolerance?: number;
 }
 
 export interface ImageGenerationResult {
@@ -17,9 +19,17 @@ export interface ImageGenerationResult {
   error?: string;
 }
 
+export type ReplicateModelString = `${string}/${string}` | `${string}/${string}-${string}` | `${string}/${string}-${string}-${string}`;
+
 export interface ImageModuleConfig {
-  model: string;
   tempDir: string;
   pinataApiKey: string;
   pinataSecretKey: string;
+  model?: string;
+}
+
+export interface ReplicatePrediction {
+  error?: string;
+  output?: string | string[];
+  [key: string]: any;
 }

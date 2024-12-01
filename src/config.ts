@@ -22,8 +22,8 @@ export const config: Config = {
   },
   modules: {
     image: {
-      model: 'stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b',
-      tempDir: 'data/images'
+      model: 'owner/model-name',
+      tempDir: './temp'
     },
     mint: {
       chainId: process.env.CHAIN_ID || 'proton',

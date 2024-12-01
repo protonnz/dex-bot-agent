@@ -1,17 +1,25 @@
 import { BaseModule } from '../base';
-import { ImageGenerationParams, ImageGenerationResult, ImageModuleConfig } from './types';
+import { ImageModuleConfig, ImageGenerationParams, ImageGenerationResult, ReplicateModelString } from './types';
 import { getLogger } from '../../core/logger';
 import Replicate from 'replicate';
 import fs from 'fs/promises';
 import path from 'path';
 import { pinFileToIPFS } from '../../core/ipfs';
+import sharp from 'sharp';
 
 const logger = getLogger();
+
+interface ReplicatePrediction {
+  error?: string;
+  output?: string | string[];
+  [key: string]: any;
+}
 
 export class ImageModule extends BaseModule {
   private client: Replicate;
   private config: ImageModuleConfig;
   private tempDir: string;
+  private readonly MODEL: ReplicateModelString = "black-forest-labs/flux-1.1-pro";
 
   constructor(config: ImageModuleConfig) {
     super(
@@ -23,7 +31,6 @@ export class ImageModule extends BaseModule {
     this.config = config;
     this.tempDir = path.resolve(process.cwd(), config.tempDir);
     
-    // Initialize Replicate client with API token from environment
     this.client = new Replicate({
       auth: process.env.REPLICATE_API_TOKEN,
     });
@@ -60,17 +67,8 @@ export class ImageModule extends BaseModule {
     try {
       logger.info('Starting image generation', { params });
 
-      // Parse model string to ensure it matches required format
-      const [owner, model] = this.config.model.split('/');
-      const [name, version] = model.split(':');
-      
-      if (!owner || !name || !version) {
-        throw new Error('Invalid model format. Expected "owner/name:version"');
-      }
-
-      const modelString = `${owner}/${name}:${version}` as const;
       const output = await this.client.run(
-        modelString,
+        this.MODEL,
         {
           input: {
             prompt: params.prompt,
@@ -80,45 +78,82 @@ export class ImageModule extends BaseModule {
             seed: params.seed || Math.floor(Math.random() * 1000000)
           }
         }
-      );
+      ) as ReplicatePrediction;
 
-      if (!output || !Array.isArray(output)) {
+      if (!output) {
         throw new Error('Invalid response from image generation API');
       }
 
-      const imageUrl = output[0];
-      const localPath = path.join(this.tempDir, `${Date.now()}.png`);
+      const imageUrl = Array.isArray(output) ? output[0] : output;
 
-      // Download and save image
+      if (!imageUrl) {
+        throw new Error(`No image URL in prediction output: ${JSON.stringify(output)}`);
+      }
+
+      // Download the image
       const response = await fetch(imageUrl);
-      const buffer = await response.arrayBuffer();
-      await fs.writeFile(localPath, Buffer.from(buffer));
+      if (!response.ok) {
+        throw new Error(`Failed to download image: ${response.statusText}`);
+      }
 
-      // Upload to IPFS
+      const imageBuffer = await response.arrayBuffer();
+      
+      // Process with Sharp to ensure valid JPG
+      const processedImage = await sharp(Buffer.from(imageBuffer))
+        .jpeg({
+          quality: 100,
+          chromaSubsampling: '4:4:4'
+        })
+        .toBuffer();
+
+      // Save the processed image
+      const timestamp = Date.now();
+      const filename = `${timestamp}-generated.jpg`;
+      const localPath = path.join(this.tempDir, filename);
+
+      await fs.writeFile(localPath, new Uint8Array(imageBuffer));
+      logger.info('Image saved locally', { localPath });
+
+      // Verify the image is valid
+      try {
+        const metadata = await sharp(localPath).metadata();
+        if (!metadata.width || !metadata.height || metadata.format !== 'jpeg') {
+          throw new Error('Invalid image generated');
+        }
+        logger.info('Image validation successful', { 
+          width: metadata.width, 
+          height: metadata.height, 
+          format: metadata.format 
+        });
+      } catch (error) {
+        throw new Error(`Image validation failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
       const ipfsHash = await pinFileToIPFS(localPath, {
         pinataApiKey: this.config.pinataApiKey,
         pinataSecretKey: this.config.pinataSecretKey
       });
-
-      await this.recordAction('generateImage', 'success', {
-        prompt: params.prompt,
-        url: imageUrl,
-        ipfs_hash: ipfsHash
-      });
+      logger.info('Image uploaded to IPFS', { ipfsHash });
 
       return {
         success: true,
         data: {
-          url: imageUrl,
+          url: `ipfs://${ipfsHash}`,
           localPath,
           ipfs_hash: ipfsHash
         }
       };
+
     } catch (error) {
-      logger.error('Failed to generate image', { error, params });
+      logger.error('Image generation failed', {
+        error: error instanceof Error ? error.message : String(error),
+        params,
+        modelId: this.MODEL
+      });
+      
       return {
         success: false,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
       };
     }
   }
@@ -135,5 +170,20 @@ export class ImageModule extends BaseModule {
     return memory?.recentActions
       .filter(action => action.action === 'generateImage' && action.result === 'success')
       .map(action => action.metadata.prompt) || [];
+  }
+
+  public configure(config: ImageModuleConfig): void {
+    this.config = config;
+  }
+
+  private async saveImage(imageData: Buffer): Promise<string> {
+    const timestamp = Date.now();
+    const fileName = `${timestamp}-generated.jpg`;
+    const localPath = path.join(this.tempDir, fileName);
+    
+    await fs.writeFile(localPath, imageData);
+    getLogger().info('Image saved locally', { localPath });
+    
+    return localPath;
   }
 }

@@ -8,28 +8,36 @@ const logger = getLogger();
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 export interface Config {
-  openaiApiKey: string;
-  replicateApiKey: string;
-  pinata: {
-    apiKey: string;
-    secretKey: string;
-    gateway?: string;
+  api: {
+    endpoint: string;
+    account: string;
   };
-  coingeckoApiKey?: string;
-  // ... other config options
+  modules: {
+    image: {
+      model: string;
+      tempDir: string;
+      pinataApiKey: string;
+      pinataSecretKey: string;
+    };
+  };
+  coingeckoApiKey: string;
 }
 
 export function getConfig(): Config {
   return {
-    openaiApiKey: process.env.OPENAI_API_KEY || '',
-    replicateApiKey: process.env.REPLICATE_API_KEY || '',
-    pinata: {
-      apiKey: process.env.PINATA_API_KEY || '',
-      secretKey: process.env.PINATA_SECRET_KEY || '',
-      gateway: process.env.PINATA_GATEWAY || 'gateway.pinata.cloud'
+    api: {
+      endpoint: process.env.API_ENDPOINT || '',
+      account: process.env.PROTON_USERNAME || '',
     },
-    coingeckoApiKey: process.env.COINGECKO_API_KEY
-    // ... other config options
+    modules: {
+      image: {
+        model: process.env.IMAGE_MODEL || '',
+        tempDir: process.env.TEMP_DIR || './temp',
+        pinataApiKey: process.env.PINATA_API_KEY || '',
+        pinataSecretKey: process.env.PINATA_SECRET_KEY || '',
+      },
+    },
+    coingeckoApiKey: process.env.COINGECKO_API_KEY || '',
   };
 }
 

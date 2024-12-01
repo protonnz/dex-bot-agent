@@ -20,19 +20,8 @@ export interface MintAssetParams {
   };
 }
 
-export interface TransactionResult {
-  success: boolean;
-  transactionId?: string;
-  error?: string;
-  data?: {
-    template_id?: number;
-    asset_id?: string;
-    [key: string]: any;
-  };
-}
-
 export interface TransactResult {
-  transaction_id: string;
+  transactionId: string;
   processed: any;
 }
 
