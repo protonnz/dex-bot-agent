@@ -28,7 +28,10 @@ async function startGuideMode(userIntent?: string) {
         pinataApiKey: process.env.PINATA_API_KEY || '',
         pinataSecretKey: process.env.PINATA_SECRET_KEY || ''
       }),
-      'MINT': new MintModule(api),
+      'MINT': new MintModule(
+        process.env.PROTON_USERNAME || '',
+        config.api.endpoint
+      ),
       'COINGECKO': new CoinGeckoModule()
     };
 
@@ -87,4 +90,8 @@ if (options.guide) {
   startGuideMode(intent);
 } else {
   logger.info('Regular mode started');
+}
+
+if (!process.env.PROTON_USERNAME) {
+  throw new Error('PROTON_USERNAME environment variable is required');
 }

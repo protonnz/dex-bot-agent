@@ -85,6 +85,26 @@ export class AgentGuide {
     }
   }
 
+  private generateCollectionName(): string {
+    // Format: ai + 5 random chars + 5 random numbers (1-5) = 12 chars total
+    const chars = 'abcdefghijklmnopqrstuvwxyz';
+    const nums = '12345';
+    
+    // Generate 5 random letters
+    let randomChars = '';
+    for (let i = 0; i < 5; i++) {
+      randomChars += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    // Generate 5 random numbers (1-5 only as per Proton requirements)
+    let randomNums = '';
+    for (let i = 0; i < 5; i++) {
+      randomNums += nums.charAt(Math.floor(Math.random() * nums.length));
+    }
+
+    return `ai${randomChars}${randomNums}`;
+  }
+
   private async handleNFTCreation(): Promise<string> {
     try {
       const imageModule = this.modules.get('IMAGE') as ImageModule;
@@ -118,46 +138,49 @@ export class AgentGuide {
         throw new Error(`Failed to generate image: ${imageResult.error || 'Unknown error'}`);
       }
 
-      // Create collection if needed
-      const collectionName = `ai_collection_${randomUUID().slice(0, 8)}`;
-      const collection: Collection = {
-        collection_name: collectionName,
-        display_name: 'AI Generated Collection',
-        description: 'A collection of AI-generated NFTs'
-      };
+      // Create a valid collection name (12 chars: ai + 5 letters + 5 numbers)
+      const collectionName = this.generateCollectionName();
+      logger.info(`Generated collection name: ${collectionName}`);
 
-      await mintModule.execute('createCollection', collection);
+      // Create collection
+      const collectionResult = await mintModule.execute('createCollection', {
+        collection_name: collectionName,
+        display_name: 'AI Collection',
+        description: 'A collection of AI-generated artwork'
+      }) as ModuleResult<Collection>;
+
+      if (!collectionResult.success) {
+        throw new Error(`Failed to create collection: ${collectionResult.error}`);
+      }
 
       // Create template
       const templateResult = await mintModule.execute('createTemplate', {
         collection_name: collectionName,
-        schema_name: 'default',
+        schema_name: 'ai.art',
         template: {
-          name: 'AI Generated NFT',
-          description: 'A unique AI-generated NFT',
+          name: 'AI Art #1',
+          description: 'An AI-generated artwork',
           image: imageResult.data.ipfs_hash
         }
-      }) as ModuleResult<TemplateData>;
+      }) as ModuleResult<{ template_id: number }>;
 
-      if (!templateResult.success || !templateResult.data) {
-        throw new Error('Failed to create template');
+      if (!templateResult.success || !templateResult.data?.template_id) {
+        throw new Error(`Failed to create template: ${templateResult.error || 'No template ID returned'}`);
       }
 
-      // Mint NFT
-      const mintParams: MintAssetParams = {
+      // Mint the NFT
+      const mintResult = await mintModule.execute('mintAsset', {
         template_id: templateResult.data.template_id,
         collection_name: collectionName,
-        schema_name: 'default',
+        schema_name: 'ai.art',
         immutable_data: {
           image: imageResult.data.ipfs_hash,
           attributes: []
         }
-      };
-
-      const mintResult = await mintModule.execute('mintAsset', mintParams) as MintResult;
+      }) as ModuleResult<MintResult>;
 
       if (!mintResult.success) {
-        throw new Error(mintResult.error || 'Failed to mint NFT');
+        throw new Error(`Failed to mint NFT: ${mintResult.error}`);
       }
 
       return `Successfully created NFT in collection ${collectionName}`;

@@ -220,3 +220,37 @@ config/default.json has other config values you can change
 - actions available on the DEX contract: https://docs.metalx.com/developers-dex/smart-contract/actions
 - general documentation on interacting with XPR Network contracts: https://docs.xprnetwork.org/
 - base version imported from https://github.com/squdgy/dexbot
+
+
+
+AGENT CHANGELOG
+# Changelog - NFT Minting Implementation
+
+## Added
+- NFT minting functionality with proper transaction handling
+- Schema creation for NFT collections
+- Template creation with proper ID extraction
+- Collection name generator with Proton-compliant format
+- Proper signature provider integration
+- Environment variable support for PROTON_USERNAME and PROTON_PRIVATE_KEY
+
+## Changed
+- Updated MintModule to handle full NFT creation flow
+- Improved error handling throughout the minting process
+- Enhanced logging for better debugging
+- Modified TransactionResult type to include template data
+- Updated API initialization with proper account validation
+
+## Fixed
+- Collection name format to meet Proton requirements (12 chars)
+- Signature provider integration
+- Template ID extraction from transaction results
+- Schema creation before template creation
+- Account permission handling
+
+## Technical Details
+- Collection names now follow format: ai + 5 random chars + 5 numbers (1-5)
+- Schema format includes: name, description, image, attributes
+- Template creation includes proper immutable data structure
+- Transaction results properly typed with optional data field
+- Improved error messages for better debugging
