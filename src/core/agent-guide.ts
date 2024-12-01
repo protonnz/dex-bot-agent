@@ -11,6 +11,7 @@ import {
   ImageModuleConfig
 } from '../modules/image/types';
 import * as path from 'path';
+import { HelperAgent } from './helper-agent';
 
 interface ModuleResult<T> {
   success: boolean;
@@ -41,10 +42,19 @@ export class AgentGuide {
   private modules: Map<string, BaseModule>;
   private moduleMemories: Map<string, ModuleMemory>;
   private readonly MEMORY_LIMIT = 10;
+  private helper: HelperAgent;
+
+  // Add trusted markets constant
+  private readonly TRUSTED_MARKETS = [
+    'XPR_XMD',
+    'XDOGE_XMD', 
+    'XBTC_XMD'
+  ] as const;
 
   constructor(modules: Record<string, BaseModule>) {
     this.modules = new Map(Object.entries(modules));
     this.moduleMemories = new Map();
+    this.helper = new HelperAgent();
 
     // Validate required environment variables
     const requiredEnvVars = [
@@ -70,43 +80,29 @@ export class AgentGuide {
     }
   }
 
-  async start(intent: string): Promise<void> {
-    logger.info('Starting guide mode...');
-    
+  async start(input: string): Promise<void> {
     try {
-      // Initialize before processing intent
-      await this.initialize();
+      logger.info('Starting guide mode...');
+      
+      // Get module decision from helper
+      const decision = await this.helper.discuss(input, {
+        availableModules: Object.keys(this.modules)
+      });
+      
+      logger.info('Helper decision', { decision });
 
-      if (intent.includes('mint')) {
-        const imageModule = this.modules.get('IMAGE') as ImageModule;
-        const mintModule = this.modules.get('MINT') as MintModule;
-
-        if (!imageModule || !mintModule) {
-          throw new Error('Required modules not found');
-        }
-
-        // Ensure both modules are initialized
-        await Promise.all([
-          imageModule.initialize(),
-          mintModule.initialize()
-        ]);
-
-        // Get or create memory states
-        const imageMemory = await imageModule.getMemoryState();
-        const mintMemory = await mintModule.getMemoryState();
-
-        if (!imageMemory || !mintMemory) {
-          logger.info('No existing memory found, creating new memory states');
-        }
-
-        // Handle NFT creation
-        const result = await this.handleNFTCreation();
-        logger.info('NFT creation completed', { result });
+      // Process based on the decision
+      if (decision.includes('MINT')) {
+        await this.handleNFTCreation();
+      } else if (decision.includes('DEX')) {
+        await this.handleDEXOperation();
+      } else {
+        throw new Error('Helper did not provide a clear module decision');
       }
+
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      logger.error('Failed to start guide mode', { error: message });
-      throw new Error(`Failed to start guide mode: ${message}`);
+      logger.error('Failed to start guide mode', { error });
+      throw new Error(`Failed to start guide mode: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -411,6 +407,49 @@ export class AgentGuide {
     if (imageModule) {
       const validConfig = this.ensureImageConfig(moduleConfig);
       imageModule.configure(validConfig);
+    }
+  }
+
+  private async handleDEXOperation(): Promise<void> {
+    try {
+      const dexModule = this.modules.get('DEX');
+      if (!dexModule) {
+        throw new Error('DEX module not initialized');
+      }
+
+      // Get market data for all trusted pairs
+      const marketsData = await Promise.all([
+        dexModule.execute('getMarketData', { pair: 'XPR_XMD' }),
+        dexModule.execute('getMarketData', { pair: 'XDOGE_XMD' }),
+        dexModule.execute('getMarketData', { pair: 'XBTC_XMD' })
+      ]);
+
+      logger.info('Current market data', { marketsData });
+
+      // Analyze trends for each market
+      const trendsData = await Promise.all(
+        marketsData.map(market => 
+          dexModule.execute('analyzeTrends', {
+            pair: market.pair,
+            timeframe: 24 * 60 * 60 * 1000 // 24 hours
+          })
+        )
+      );
+
+      logger.info('Market trends', { trendsData });
+
+      // Check liquidity for each market
+      const liquidityData = await Promise.all(
+        marketsData.map(market =>
+          dexModule.execute('checkLiquidity', { pair: market.pair })
+        )
+      );
+
+      logger.info('Market liquidity', { liquidityData });
+
+    } catch (error) {
+      logger.error('DEX operation failed', { error });
+      throw error;
     }
   }
 }

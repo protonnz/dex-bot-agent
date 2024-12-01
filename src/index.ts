@@ -4,10 +4,18 @@ import { AgentGuide } from './core/agent-guide';
 import { BaseModule } from './modules/base';
 import { MintModule } from './modules/mint';
 import { ImageModule } from './modules/image';
+import { DexModule } from './modules/dex';
 import { getLogger } from './core/logger';
+import * as readline from 'readline';
 
 const logger = getLogger();
 const config = getConfig();
+
+// Create readline interface
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
 
 async function main() {
   try {
@@ -36,18 +44,31 @@ async function main() {
         pinataApiKey: config.modules.image.pinataApiKey,
         pinataSecretKey: config.modules.image.pinataSecretKey,
       }),
-      'MINT': new MintModule()
+      'MINT': new MintModule(),
+      'DEX': new DexModule()
     };
 
     // Initialize the API for the MintModule before starting the guide
     await (modules['MINT'] as MintModule).initializeApi(api, config.api.account || '');
 
-    // Initialize guide with intent
+    // Initialize guide
     const guide = new AgentGuide(modules);
-    await guide.start("mint an nft");
+    await guide.initialize();
+
+    // Prompt user for input
+    rl.question('What would you like to do? (analyze markets/mint NFT): ', async (input) => {
+      try {
+        await guide.start(input);
+        rl.close();
+      } catch (error) {
+        logger.error('Error processing input', { error });
+        rl.close();
+      }
+    });
 
   } catch (error) {
     logger.error('Failed to start guide mode:', error);
+    rl.close();
     process.exit(1);
   }
 }

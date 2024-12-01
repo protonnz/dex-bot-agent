@@ -91,5 +91,73 @@ export interface DexTransactionResult {
 
 export const MARKET_IDS = {
   'XPR_XMD': 1,
-  'XPR_USDC': 2,
+  'XDOGE_XMD': 2,
+  'XBTC_XMD': 3
 } as const;
+
+export interface MarketData {
+  pair: string;
+  price: number;
+  volume: number;
+  timestamp: number;
+  depth: OrderBookDepth;
+  trades: RecentTrade[];
+  ohlcv: OHLCV;
+}
+
+export interface OrderBookDepth {
+  bids: Array<{
+    price: number;
+    quantity: number;
+    count: number;
+  }>;
+  asks: Array<{
+    price: number;
+    quantity: number;
+    count: number;
+  }>;
+  timestamp: number;
+}
+
+export interface RecentTrade {
+  id: string;
+  price: number;
+  quantity: number;
+  side: keyof typeof ORDERSIDES;
+  timestamp: number;
+}
+
+export interface OHLCV {
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  price_change: number;
+  volume_weighted_price: number;
+}
+
+export interface MarketSummary {
+  pair: string;
+  last_price: number;
+  price_change_24h: number;
+  volume_24h: number;
+  high_24h: number;
+  low_24h: number;
+}
+
+export interface OHLCVDataPoint {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number | null;
+  volume_bid: number;
+  count: number;
+}
+
+export interface OHLCVResponse {
+  sync: number;
+  data: OHLCVDataPoint[];
+}
