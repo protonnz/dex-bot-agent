@@ -1,8 +1,9 @@
+import axios from 'axios';
 import { BaseModule } from '../base';
 import { DatabaseManager } from '../../core/database';
 import { getLogger } from '../../core/logger';
-import axios from 'axios';
-import { MarketData, OrderBookDepth, RecentTrade, OHLCV, OHLCVDataPoint, OHLCVResponse } from './types';
+import { ProtonClient } from '../../core/proton';
+import { MarketData, OrderBookDepth, RecentTrade, OHLCV, OHLCVDataPoint, OHLCVResponse, OrderParams } from './types';
 
 const logger = getLogger();
 
@@ -71,8 +72,19 @@ interface AgentMarketSummary {
   };
 }
 
+interface OHLCVCandle {
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  volume_bid?: number;
+  timestamp: string;
+}
+
 export class DexModule extends BaseModule {
   protected db: DatabaseManager;
+  private proton: ProtonClient;
   private readonly API_BASE = 'https://dex.api.mainnet.metalx.com/dex/v1';
   private readonly RATE_LIMIT = 10;
   private readonly TRUSTED_MARKETS = ['XPR_XMD', 'XDOGE_XMD', 'XBTC_XMD'] as const;
@@ -84,9 +96,11 @@ export class DexModule extends BaseModule {
       'getOrderBook',
       'getRecentTrades',
       'analyzeTrends',
-      'checkLiquidity'
+      'checkLiquidity',
+      'placeOrder'
     ]);
     this.db = new DatabaseManager('market');
+    this.proton = new ProtonClient();
   }
 
   async initialize(): Promise<void> {
@@ -119,6 +133,8 @@ export class DexModule extends BaseModule {
         return this.analyzeTrends(params.pair, params.timeframe);
       case 'checkLiquidity':
         return this.checkLiquidity(params.pair);
+      case 'placeOrder':
+        return this.placeOrder(params);
       default:
         throw new Error(`Unknown action: ${action}`);
     }
@@ -170,8 +186,8 @@ export class DexModule extends BaseModule {
         params: {
           symbol: pair,
           interval: '15',
-          from: from,
-          to: to,
+          from,
+          to,
           limit: '100'
         },
         headers: {
@@ -181,9 +197,19 @@ export class DexModule extends BaseModule {
       });
 
       if (response.data?.data?.length) {
-        const validCandles = response.data.data.filter(candle => 
-          candle && candle.volume != null && !isNaN(candle.volume)
-        );
+        const validCandles: OHLCVCandle[] = response.data.data
+          .filter((candle: OHLCVDataPoint) =>
+            candle && candle.volume != null && !isNaN(candle.volume)
+          )
+          .map(candle => ({
+            open: candle.open,
+            high: candle.high,
+            low: candle.low,
+            close: candle.close,
+            volume: candle.volume || 0,
+            volume_bid: candle.volume_bid,
+            timestamp: candle.time.toString()
+          }));
 
         if (validCandles.length) {
           const first = validCandles[0];
@@ -191,13 +217,13 @@ export class DexModule extends BaseModule {
 
           return {
             open: first.open,
-            high: Math.max(...validCandles.map(c => c.high)),
-            low: Math.min(...validCandles.map(c => c.low)),
+            high: Math.max(...validCandles.map((c: OHLCVCandle) => c.high)),
+            low: Math.min(...validCandles.map((c: OHLCVCandle) => c.low)),
             close: last.close,
-            volume: validCandles.reduce((sum, c) => sum + (c.volume || 0), 0),
+            volume: validCandles.reduce((sum: number, c: OHLCVCandle) => sum + (c.volume || 0), 0),
             price_change: ((last.close - first.open) / first.open) * 100,
-            volume_weighted_price: validCandles.reduce((sum, c) => sum + (c.volume_bid || 0), 0) / 
-                                 validCandles.reduce((sum, c) => sum + (c.volume || 0), 0) || 0
+            volume_weighted_price: validCandles.reduce((sum: number, c: OHLCVCandle) => sum + (c.volume_bid || 0), 0) / 
+                                 validCandles.reduce((sum: number, c: OHLCVCandle) => sum + (c.volume || 0), 0) || 0
           };
         }
       }
@@ -412,6 +438,62 @@ export class DexModule extends BaseModule {
       recentTrades,
       liquidity
     };
+  }
+
+  async placeOrder(params: OrderParams): Promise<unknown> {
+    logger.info('Validating order parameters...', { params });
+    
+    if (!params.marketSymbol || !params.side || !params.type || !params.quantity) {
+      throw new Error('Missing required order parameters');
+    }
+
+    try {
+      logger.info('Submitting order to blockchain...', {
+        market: params.marketSymbol,
+        side: params.side,
+        type: params.type,
+        quantity: params.quantity,
+        price: params.price
+      });
+
+      const action = {
+        account: 'dex.proton',
+        name: 'placeorder',
+        authorization: [{
+          actor: this.proton.getAccount(),
+          permission: 'active'
+        }],
+        data: {
+          account: this.proton.getAccount(),
+          market_id: params.market_id,
+          side: params.side,
+          type: params.type,
+          quantity: params.quantity,
+          price: params.price,
+          stop_price: params.stopPrice,
+          fill_type: params.fillType || 'GTC'
+        }
+      };
+
+      const result = await this.proton.transact({
+        actions: [action]
+      });
+
+      logger.info('Order placed successfully:', {
+        txid: result.transaction_id,
+        blockNum: result.processed.block_num,
+        params
+      });
+
+      return result;
+
+    } catch (error) {
+      logger.error('Failed to place order on blockchain:', {
+        error: error instanceof Error ? error.message : String(error),
+        params
+      });
+      throw error;
+    }
   }
 }
 

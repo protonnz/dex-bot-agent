@@ -8,36 +8,18 @@ const logger = getLogger();
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 export interface Config {
-  api: {
-    endpoint: string;
-    account: string;
-  };
-  modules: {
-    image: {
-      model: string;
-      tempDir: string;
-      pinataApiKey: string;
-      pinataSecretKey: string;
-    };
-  };
+  rpcEndpoint: string;
+  privateKey: string;
+  account: string;
   coingeckoApiKey: string;
 }
 
 export function getConfig(): Config {
   return {
-    api: {
-      endpoint: process.env.API_ENDPOINT || '',
-      account: process.env.PROTON_USERNAME || '',
-    },
-    modules: {
-      image: {
-        model: process.env.IMAGE_MODEL || '',
-        tempDir: process.env.TEMP_DIR || './temp',
-        pinataApiKey: process.env.PINATA_API_KEY || '',
-        pinataSecretKey: process.env.PINATA_SECRET_KEY || '',
-      },
-    },
-    coingeckoApiKey: process.env.COINGECKO_API_KEY || '',
+    rpcEndpoint: process.env.API_ENDPOINT || '',
+    privateKey: process.env.PROTON_PRIVATE_KEY || '',
+    account: process.env.PROTON_USERNAME || '',
+    coingeckoApiKey: process.env.COINGECKO_API_KEY || ''
   };
 }
 

@@ -12,6 +12,8 @@ import {
 } from '../modules/image/types';
 import * as path from 'path';
 import { HelperAgent } from './helper-agent';
+import { DexModule } from '../modules/dex';
+import { AIDecision } from '../interfaces/ai.interface';
 
 interface ModuleResult<T> {
   success: boolean;
@@ -44,13 +46,6 @@ export class AgentGuide {
   private readonly MEMORY_LIMIT = 10;
   private helper: HelperAgent;
 
-  // Add trusted markets constant
-  private readonly TRUSTED_MARKETS = [
-    'XPR_XMD',
-    'XDOGE_XMD', 
-    'XBTC_XMD'
-  ] as const;
-
   constructor(modules: Record<string, BaseModule>) {
     this.modules = new Map(Object.entries(modules));
     this.moduleMemories = new Map();
@@ -80,30 +75,81 @@ export class AgentGuide {
     }
   }
 
-  async start(input: string): Promise<void> {
+  async start(input: string, autoMode: boolean = false): Promise<void> {
     try {
-      logger.info('Starting guide mode...');
+      logger.info('Starting guide mode...', { autoMode });
       
-      // Get module decision from helper
-      const decision = await this.helper.discuss(input, {
-        availableModules: Object.keys(this.modules)
-      });
-      
-      logger.info('Helper decision', { decision });
+      if (autoMode) {
+        // Let the AI helper decide what action to take
+        const helperResponse = await this.helper.discuss(
+          "As an autonomous agent, analyze the current market conditions and module states to decide whether to perform market analysis or create an NFT. Consider factors like market volatility, recent trades, and creative opportunities.", 
+          { availableModules: Array.from(this.modules.keys()) }
+        );
 
-      // Process based on the decision
-      if (decision.includes('MINT')) {
-        await this.handleNFTCreation();
-      } else if (decision.includes('DEX')) {
-        await this.handleDEXOperation();
+        logger.info('Helper autonomous decision', { response: helperResponse });
+
+        // Parse the AI's decision
+        const match = helperResponse.match(/USE (\w+)/);
+        if (!match) {
+          throw new Error('Invalid helper response format');
+        }
+
+        // Execute based on AI decision
+        switch (match[1]) {
+          case 'DEX':
+            logger.info('AI chose to analyze markets');
+            await this.handleDEXOperation();
+            break;
+          case 'MINT':
+            logger.info('AI chose to create NFT');
+            await this.handleNFTCreation();
+            break;
+          default:
+            throw new Error(`Unsupported module decision: ${match[1]}`);
+        }
       } else {
-        throw new Error('Helper did not provide a clear module decision');
+        // Original interactive flow
+        const intent = await this.analyzeIntent(input);
+        logger.info('Analyzed intent', { intent });
+
+        if (intent === 'MARKET_ANALYSIS') {
+          await this.handleDEXOperation();
+        } else if (intent === 'NFT_CREATION') {
+          await this.handleNFTCreation();
+        } else {
+          throw new Error(`Unsupported intent: ${intent}`);
+        }
       }
 
     } catch (error) {
       logger.error('Failed to start guide mode', { error });
       throw new Error(`Failed to start guide mode: ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+
+  private async analyzeIntent(input: string): Promise<'MARKET_ANALYSIS' | 'NFT_CREATION'> {
+    const input_lower = input.toLowerCase().trim();
+    
+    // Direct keyword matching for markets
+    if (input_lower.includes('market') || 
+        input_lower.includes('analyze') || 
+        input_lower.includes('trade') || 
+        input_lower.includes('dex')) {
+      logger.info('Direct market analysis match');
+      return 'MARKET_ANALYSIS';
+    }
+    
+    // Direct keyword matching for NFTs
+    if (input_lower.includes('nft') || 
+        input_lower.includes('mint') || 
+        input_lower.includes('create')) {
+      logger.info('Direct NFT creation match');
+      return 'NFT_CREATION';
+    }
+
+    // Default to market analysis if no clear match
+    logger.info('No direct match, defaulting to market analysis');
+    return 'MARKET_ANALYSIS';
   }
 
   private generateCollectionName(): string {
@@ -411,45 +457,129 @@ export class AgentGuide {
   }
 
   private async handleDEXOperation(): Promise<void> {
+    logger.info('Starting DEX operation analysis...');
+
     try {
-      const dexModule = this.modules.get('DEX');
+      const dexModule = this.modules.get('DEX') as DexModule;
       if (!dexModule) {
-        throw new Error('DEX module not initialized');
+        throw new Error('DEX module not found');
       }
 
-      // Get market data for all trusted pairs
-      const marketsData = await Promise.all([
-        dexModule.execute('getMarketData', { pair: 'XPR_XMD' }),
-        dexModule.execute('getMarketData', { pair: 'XDOGE_XMD' }),
-        dexModule.execute('getMarketData', { pair: 'XBTC_XMD' })
-      ]);
+      // Only get XPR_XMD market data
+      const marketData = await dexModule.getMarketData('XPR_XMD');
+      
+      // Validate and process market data
+      if (!marketData || !marketData.pair) {
+        throw new Error('Invalid market data received');
+      }
 
-      logger.info('Current market data', { marketsData });
+      const validMarket = {
+        pair: marketData.pair,
+        price: marketData.price,
+        volume: marketData.ohlcv?.volume || 0,
+        priceChange: marketData.ohlcv?.price_change || 0
+      };
 
-      // Analyze trends for each market
-      const trendsData = await Promise.all(
-        marketsData.map(market => 
-          dexModule.execute('analyzeTrends', {
-            pair: market.pair,
-            timeframe: 24 * 60 * 60 * 1000 // 24 hours
-          })
-        )
+      logger.info('Market data processed successfully', { validMarket });
+
+      // Analyze market and make trading decision
+      const decision = await this.helper.discuss(
+        `Analyze this market condition:
+        ${JSON.stringify(validMarket, null, 2)}
+        Consider: price trends, volume, and volatility.
+        You MUST respond with a specific trading decision in EXACTLY this format:
+        USE DEX placeOrder XPR_XMD {side} {type} {quantity}
+        For example: USE DEX placeOrder XPR_XMD buy limit 1000
+        If you don't recommend a trade, respond with: USE DEX skip`,
+        { context: 'market_analysis' }
       );
 
-      logger.info('Market trends', { trendsData });
+      logger.info('Trading decision received', { decision });
 
-      // Check liquidity for each market
-      const liquidityData = await Promise.all(
-        marketsData.map(market =>
-          dexModule.execute('checkLiquidity', { pair: market.pair })
-        )
-      );
+      // Validate decision format
+      const decisionPattern = /^USE DEX (placeOrder XPR_XMD (buy|sell) (market|limit) \d+|skip)$/i;
+      if (!decisionPattern.test(decision)) {
+        throw new Error('Invalid trading decision format from helper');
+      }
 
-      logger.info('Market liquidity', { liquidityData });
+      if (decision === 'USE DEX skip') {
+        logger.info('No trading action recommended');
+        return;
+      }
+
+      // Parse and execute the trading decision
+      const [_, __, action, market, side, type, quantity] = decision.split(' ');
+      await this.executeOperation({
+        module: 'DEX',
+        action,
+        params: { 
+          marketSymbol: 'XPR_XMD',
+          side: side.toLowerCase(),
+          type: type.toLowerCase(),
+          quantity: parseInt(quantity)
+        }
+      });
 
     } catch (error) {
-      logger.error('DEX operation failed', { error });
+      logger.error('DEX operation failed:', { 
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       throw error;
     }
+  }
+
+  async executeOperation(decision: AIDecision): Promise<void> {
+    try {
+      const module = this.modules.get(decision.module);
+      if (!module) {
+        throw new Error(`Module ${decision.module} not found`);
+      }
+
+      logger.info('Executing operation:', {
+        module: decision.module,
+        action: decision.action,
+        params: decision.params
+      });
+
+      if (decision.module === 'DEX' && decision.action === 'placeOrder') {
+        logger.info('Validating DEX order parameters...', decision.params);
+        await this.validateDEXOrder(decision.params);
+      }
+
+      const result = await module.execute(decision.action, decision.params);
+      
+      if (result.success) {
+        logger.info('Operation completed successfully:', {
+          module: decision.module,
+          action: decision.action,
+          result: result.data
+        });
+      } else {
+        logger.error('Operation failed:', {
+          module: decision.module,
+          action: decision.action,
+          error: result.error
+        });
+      }
+
+    } catch (error) {
+      logger.error('Failed to execute operation:', {
+        error: error instanceof Error ? error.message : String(error),
+        module: decision.module,
+        action: decision.action
+      });
+      throw error;
+    }
+  }
+
+  private async validateDEXOrder(params: Record<string, unknown>): Promise<void> {
+    // Add validation logic here
+    if (!params.marketSymbol || !params.side || !params.type || !params.quantity) {
+      throw new Error('Missing required order parameters');
+    }
+
+    // Add additional validation as needed
+    logger.info('Order parameters validated successfully');
   }
 }

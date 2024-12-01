@@ -30,4 +30,17 @@ export async function initializeApi() {
     logger.error(`Failed to initialize API: ${error.message}`);
     throw error;
   }
+}
+
+export class ProtonClient {
+    // Implementation details
+    getAccount(): string {
+        // Implementation
+        return '';
+    }
+
+    async transact(params: any): Promise<any> {
+        // Implementation
+        return {};
+    }
 } 

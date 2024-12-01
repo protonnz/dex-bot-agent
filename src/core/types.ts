@@ -23,4 +23,11 @@ export interface MintData {
 
 export type ImageResult = ModuleResult<ImageData>;
 export type TemplateResult = ModuleResult<TemplateData>;
-export type MintResult = ModuleResult<MintData>; 
+export type MintResult = ModuleResult<MintData>;
+
+export interface ModuleActionResult {
+    action: string;
+    params: Record<string, unknown>;
+    result: any;
+    timestamp?: number;
+} 

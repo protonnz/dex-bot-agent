@@ -8,7 +8,7 @@ import { ModuleActionResult } from '../modules/mint/types';
 interface AIDecision {
   module: string;
   action: string;
-  params: Record<string, any>;
+  params: Record<string, unknown>;
   reasoning: string;
 }
 
@@ -169,7 +169,7 @@ Respond with valid JSON only, in this format:
         const marketData = await this.getMarketData();
         
         if (marketData) {
-          const proposedPrice = decision.params.price;
+          const proposedPrice = decision.params.price as number;
           const maxAllowedPrice = marketData.price * 1.05;
 
           if (proposedPrice > maxAllowedPrice) {
@@ -179,12 +179,38 @@ Respond with valid JSON only, in this format:
         }
 
         const dexModule = this.modules.get('DEX') as DexModule;
+        if (!dexModule) {
+          throw new Error('DEX module not found');
+        }
+
+        this.logger.info('Executing DEX operation...', {
+          action: decision.action,
+          params: decision.params
+        });
+
         const result = await dexModule.execute(decision.action, decision.params);
-        this.logger.info(`Trade execution result: ${JSON.stringify(result, null, 2)}`);
+        
+        this.logger.info('Trade execution completed:', {
+          success: result.success,
+          data: result.data,
+          error: result.error
+        });
+
+        if (result.success) {
+          this.actionHistory.push({
+            action: decision.action,
+            params: decision.params,
+            result: result.data,
+            timestamp: Date.now(),
+            success: true
+          } as ModuleActionResult);
+        }
       }
     } catch (err) {
       const error = err as Error;
-      this.logger.error(`Loop execution error: ${error.message}`);
+      this.logger.error(`Loop execution error: ${error.message}`, {
+        stack: error.stack
+      });
     }
 
     this.logger.info('Loop completed. Waiting for next iteration...');
