@@ -1,7 +1,9 @@
 import OpenAI from 'openai';
-import { BaseModule, ModuleAction } from '../modules/base';
-import { Logger } from './logger';
+import { BaseModule } from '../modules/base';
+import { getLogger } from './logger';
 import { DexModule } from '../modules/dex';
+import winston from 'winston';
+import { ModuleActionResult } from '../modules/mint/types';
 
 interface AIDecision {
   module: string;
@@ -13,13 +15,13 @@ interface AIDecision {
 export class Agent {
   private modules: Map<string, BaseModule>;
   private openai: OpenAI;
-  private logger: Logger;
-  private actionHistory: ModuleAction[];
+  private logger: winston.Logger;
+  private actionHistory: ModuleActionResult[];
 
-  constructor(openaiApiKey: string, logger: Logger) {
+  constructor(openaiApiKey: string) {
     this.modules = new Map();
     this.openai = new OpenAI({ apiKey: openaiApiKey });
-    this.logger = logger;
+    this.logger = getLogger();
     this.actionHistory = [];
   }
 

@@ -12,3 +12,5 @@
 {"level":"error","message":"DEX error: invalid number","timestamp":"2024-12-01T03:12:41.655Z"}
 {"level":"error","message":"Failed to place order: assertion failure with message: Invalid trigger price","timestamp":"2024-12-01T03:13:30.577Z"}
 {"level":"error","message":"DEX error: assertion failure with message: Invalid trigger price","timestamp":"2024-12-01T03:13:30.578Z"}
+{"level":"error","message":"Failed to generate image: Request to https://api.replicate.com/v1/models/black-forest-labs/flux-1.1-pro-ultra/predictions failed with status 401 Unauthorized: {\"title\":\"Unauthenticated\",\"detail\":\"You did not pass an authentication token\",\"status\":401}\n.","timestamp":"2024-12-01T06:10:06.466Z"}
+{"level":"error","message":"Failed to generate image: Request to https://api.replicate.com/v1/models/black-forest-labs/flux-1.1-pro-ultra/predictions failed with status 401 Unauthorized: {\"title\":\"Unauthenticated\",\"detail\":\"You did not pass an authentication token\",\"status\":401}\n.","timestamp":"2024-12-01T06:20:45.463Z"}

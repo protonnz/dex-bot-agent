@@ -11,3 +11,11 @@ notes.txt
 pinata.json
 
 package-lock.json
+
+
+# Data directories
+data/.temp/*
+data/.memory/*
+!data/.temp/.gitkeep
+!data/.memory/.gitkeep
+data/

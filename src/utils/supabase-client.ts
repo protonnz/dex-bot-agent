@@ -1,39 +1,28 @@
-import pkg from "@supabase/supabase-js";
-import { Database } from "../interfaces/db_scheme";
-const { SupabaseClient } = pkg;
+// Temporarily removed Supabase integration
+export const supabase = null;
 
-export const supabase = new SupabaseClient<Database>(
-  process.env.SUPABASE_URL!,
-  process.env.SERVICE_ROLE_KEY!,
-);
-
-export async function pushToDB(aiJsonOutput: any): Promise<any>{
-  
+/*
+export async function pushToDB(aiJsonOutput: any): Promise<any> {
   return new Promise(async (resolve, reject) => {
-  
     const { data, error } = await supabase.from('prediction_ideas').insert({
-      start:aiJsonOutput.start,
-      end:aiJsonOutput.end,
-      title:aiJsonOutput.title,
+      start: aiJsonOutput.start,
+      end: aiJsonOutput.end,
+      title: aiJsonOutput.title,
       resolving_rules: aiJsonOutput.description,
       answers: aiJsonOutput.answers,
-      resolving_url: aiJsonOutput.resolving_url, // dunno if we have 
-      slug:aiJsonOutput.slug
-    })
+      resolving_url: aiJsonOutput.resolving_url,
+      slug: aiJsonOutput.slug
+    });
     if (data) {
       resolve(data);
-      console.log("sucess")
+      console.log("success");
       return;
     }
     if (error) {
       reject(error);
-      console.log("Error",error)
-      return 
+      console.log("Error", error);
+      return;
     }
-    
-  })
-  
-
-
-
+  });
 }
+*/
