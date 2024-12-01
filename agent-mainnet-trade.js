@@ -597,6 +597,8 @@ async function getAIDecision() {
   // Prepare the data as a JSON string
   const dataString = JSON.stringify({ ...data, portfolioValue }, null, 2);
 
+  console.log(dataString);
+
   // Prepare the prompt with constraints
   const prompt = `Based on the following summarized data, decide whether to place any orders to maximize the overall portfolio value.
 

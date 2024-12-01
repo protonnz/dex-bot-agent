@@ -1,0 +1,14 @@
+{"level":"error","message":"AI decision error: Unexpected token 'S', \"Since ther\"... is not valid JSON","timestamp":"2024-12-01T02:55:01.614Z"}
+{"level":"error","message":"Loop execution error: Unexpected token 'S', \"Since ther\"... is not valid JSON","timestamp":"2024-12-01T02:55:01.614Z"}
+{"level":"error","message":"Failed to place order: missing placeorder.order_type (type=uint8)","timestamp":"2024-12-01T03:04:59.079Z"}
+{"level":"error","message":"DEX error: missing placeorder.order_type (type=uint8)","timestamp":"2024-12-01T03:04:59.080Z"}
+{"level":"error","message":"Failed to place order: Expected number","timestamp":"2024-12-01T03:06:03.677Z"}
+{"level":"error","message":"DEX error: Expected number","timestamp":"2024-12-01T03:06:03.678Z"}
+{"level":"error","message":"Failed to place order: Expected number","timestamp":"2024-12-01T03:07:13.178Z"}
+{"level":"error","message":"DEX error: Expected number","timestamp":"2024-12-01T03:07:13.179Z"}
+{"level":"error","message":"Failed to place order: No market found by symbol XPR_XMD","timestamp":"2024-12-01T03:11:07.039Z"}
+{"level":"error","message":"DEX error: No market found by symbol XPR_XMD","timestamp":"2024-12-01T03:11:07.040Z"}
+{"level":"error","message":"Failed to place order: invalid number","timestamp":"2024-12-01T03:12:41.654Z"}
+{"level":"error","message":"DEX error: invalid number","timestamp":"2024-12-01T03:12:41.655Z"}
+{"level":"error","message":"Failed to place order: assertion failure with message: Invalid trigger price","timestamp":"2024-12-01T03:13:30.577Z"}
+{"level":"error","message":"DEX error: assertion failure with message: Invalid trigger price","timestamp":"2024-12-01T03:13:30.578Z"}
