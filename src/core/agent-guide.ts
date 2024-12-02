@@ -12,8 +12,9 @@ import {
 } from '../modules/image/types';
 import * as path from 'path';
 import { HelperAgent } from './helper-agent';
-import { DexModule } from '../modules/dex';
+import { DexModule, TransactionResult } from '../modules/dex/types';
 import { AIDecision } from '../interfaces/ai.interface';
+import { OrderType, FillType } from '../modules/gecko/types';
 
 interface ModuleResult<T> {
   success: boolean;
@@ -38,15 +39,26 @@ interface AIResponse {
   style?: string;
 }
 
+interface AIHelper {
+  // Add properties/methods as needed
+}
+
+interface ModuleMemory {
+  recentActions: Array<{
+    timestamp: number;
+    action: string;
+  }>;
+  // Add other memory properties as needed
+}
+
 const logger = getLogger();
 
 export class AgentGuide {
-  private modules: Map<string, BaseModule>;
+  private modules: Map<string, any>;
+  private helper: AIHelper;
   private moduleMemories: Map<string, ModuleMemory>;
-  private readonly MEMORY_LIMIT = 10;
-  private helper: HelperAgent;
 
-  constructor(modules: Record<string, BaseModule>) {
+  constructor(modules: Record<string, any>) {
     this.modules = new Map(Object.entries(modules));
     this.moduleMemories = new Map();
     this.helper = new HelperAgent();
@@ -75,10 +87,18 @@ export class AgentGuide {
     }
   }
 
-  async start(input: string, autoMode: boolean = false): Promise<void> {
+  async start(input: string, autoMode: boolean = false, forceAction: boolean = false): Promise<void> {
     try {
-      logger.info('Starting guide mode...', { autoMode });
+      logger.info('Starting guide mode...', { autoMode, forceAction });
       
+      // If force trade is enabled, go straight to DEX operation
+      if (forceAction) {
+        logger.info('Force trade enabled - proceeding directly to market analysis');
+        await this.handleDEXOperation(forceAction);
+        return;
+      }
+      
+      // Original autoMode and manual mode logic continues...
       if (autoMode) {
         // Let the AI helper decide what action to take
         const helperResponse = await this.helper.discuss(
@@ -98,7 +118,7 @@ export class AgentGuide {
         switch (match[1]) {
           case 'DEX':
             logger.info('AI chose to analyze markets');
-            await this.handleDEXOperation();
+            await this.handleDEXOperation(forceAction);
             break;
           case 'MINT':
             logger.info('AI chose to create NFT');
@@ -113,7 +133,7 @@ export class AgentGuide {
         logger.info('Analyzed intent', { intent });
 
         if (intent === 'MARKET_ANALYSIS') {
-          await this.handleDEXOperation();
+          await this.handleDEXOperation(forceAction);
         } else if (intent === 'NFT_CREATION') {
           await this.handleNFTCreation();
         } else {
@@ -355,17 +375,18 @@ export class AgentGuide {
     return 'Intent not recognized';
   }
 
-  async getMemorySnapshot(): Promise<string> {
+  private getMemorySnapshot(): string[] {
     const snapshot = Array.from(this.moduleMemories.entries())
-      .map(([name, memory]) => {
-        return `${name} Module:\n` +
+      .map(([name, memory]: [string, ModuleMemory]) => {
+        return `${name}:\n${
           memory.recentActions
-            .map(a => `  ${new Date(a.timestamp).toLocaleString()}: ${a.action}`)
-            .join('\n');
-      })
-      .join('\n\n');
-
-    return `Current Memory State:\n${snapshot}`;
+            .map((a: { timestamp: number; action: string }) => 
+              `  ${new Date(a.timestamp).toLocaleString()}: ${a.action}`
+            )
+            .join('\n')
+        }`;
+      });
+    return snapshot;
   }
 
   getAllModuleCapabilities(): string[] {
@@ -456,45 +477,73 @@ export class AgentGuide {
     }
   }
 
-  private async handleDEXOperation(): Promise<void> {
-    logger.info('Starting DEX operation analysis...');
-
+  private async handleDEXOperation(forceAction: boolean = false): Promise<void> {
     try {
       const dexModule = this.modules.get('DEX') as DexModule;
       if (!dexModule) {
         throw new Error('DEX module not found');
       }
 
-      // Only get XPR_XMD market data
-      const marketData = await dexModule.getMarketData('XPR_XMD');
-      
-      // Validate and process market data
-      if (!marketData || !marketData.pair) {
-        throw new Error('Invalid market data received');
-      }
-
-      const validMarket = {
-        pair: marketData.pair,
-        price: marketData.price,
-        volume: marketData.ohlcv?.volume || 0,
-        priceChange: marketData.ohlcv?.price_change || 0
-      };
-
+      // Get market data first
+      const validMarket = await dexModule.getMarketData('XPR_XMD');
       logger.info('Market data processed successfully', { validMarket });
 
-      // Analyze market and make trading decision
+      if (forceAction) {
+        // Force the AI to make a trading decision
+        const decision = await this.helper.discuss(
+          `FORCED TRADE REQUIRED. Based on this market data:
+          ${JSON.stringify(validMarket, null, 2)}
+          
+          You MUST choose either BUY or SELL - no skipping allowed.
+          Consider:
+          1. Price trends (${validMarket.ohlcv.price_change}% change)
+          2. Volume (${validMarket.volume})
+          3. Order book depth
+          4. Recent trades
+          
+          IMPORTANT: You MUST respond with a trading decision - skipping is not allowed.
+          Respond EXACTLY in this format:
+          USE DEX placeOrder XPR_XMD {side} limit {quantity}`,
+          { context: 'forced_trade' }
+        );
+
+        const [_, __, action, market, side, type, quantity] = decision.split(' ');
+        await this.executeOperation({
+          module: 'DEX',
+          action: 'placeOrder',
+          params: {
+            marketSymbol: 'XPR_XMD',
+            market_id: 1,
+            side: side.toUpperCase(),
+            type: type.toUpperCase(),
+            order_type: OrderType.LIMIT,
+            quantity: parseInt(quantity),
+            price: validMarket.price,
+            account: dexModule.account,
+            trigger_price: "0.000000",
+            fill_type: FillType.GTC
+          }
+        });
+        return;
+      }
+
+      // Normal non-forced operation continues...
       const decision = await this.helper.discuss(
         `Analyze this market condition:
         ${JSON.stringify(validMarket, null, 2)}
-        Consider: price trends, volume, and volatility.
+        Consider:
+        1. Price trends (${validMarket.ohlcv.price_change}% change)
+        2. Volume (${validMarket.volume})
+        3. Order book depth
+        4. Recent trade patterns
+        5. Support/resistance levels
+        
         You MUST respond with a specific trading decision in EXACTLY this format:
         USE DEX placeOrder XPR_XMD {side} {type} {quantity}
         For example: USE DEX placeOrder XPR_XMD buy limit 1000
         If you don't recommend a trade, respond with: USE DEX skip`,
         { context: 'market_analysis' }
       );
-
-      logger.info('Trading decision received', { decision });
 
       // Validate decision format
       const decisionPattern = /^USE DEX (placeOrder XPR_XMD (buy|sell) (market|limit) \d+|skip)$/i;
@@ -509,15 +558,23 @@ export class AgentGuide {
 
       // Parse and execute the trading decision
       const [_, __, action, market, side, type, quantity] = decision.split(' ');
+      const orderParams = {
+        marketSymbol: 'XPR_XMD',
+        market_id: 1,
+        side: side.toUpperCase(),
+        type: type.toUpperCase(),
+        order_type: OrderType.LIMIT,
+        quantity: parseInt(quantity),
+        price: validMarket.price,
+        account: dexModule.account,
+        trigger_price: "0.000000",
+        fill_type: FillType.GTC
+      };
+
       await this.executeOperation({
         module: 'DEX',
-        action,
-        params: { 
-          marketSymbol: 'XPR_XMD',
-          side: side.toLowerCase(),
-          type: type.toLowerCase(),
-          quantity: parseInt(quantity)
-        }
+        action: 'placeOrder',
+        params: orderParams
       });
 
     } catch (error) {
@@ -545,6 +602,41 @@ export class AgentGuide {
       if (decision.module === 'DEX' && decision.action === 'placeOrder') {
         logger.info('Validating DEX order parameters...', decision.params);
         await this.validateDEXOrder(decision.params);
+        
+        // Execute the order and wait for blockchain confirmation
+        const dexModule = module as DexModule;
+        const result = await dexModule.execute(decision.action, decision.params);
+        
+        if (result.success && result.transaction_id) {
+          const confirmed = await dexModule.getTransaction(result.transaction_id);
+          
+          // Type assertion to make TypeScript shut the fuck up
+          const tx = confirmed as unknown as TransactionResult;
+
+          if (!tx || !tx.processed) {
+            throw new Error(`Transaction ${result.transaction_id} not confirmed`);
+          }
+
+          const traces = tx.processed.action_traces;
+          const ordinalId = traces[0]?.inline_traces?.[0]?.data?.ordinal_order_id;
+          
+          if (ordinalId) {
+            try {
+              const lifecycle = await (dexModule as any).getOrderLifecycle(ordinalId);
+              logger.info('Order lifecycle:', lifecycle);
+            } catch (error) {
+              logger.warn('Failed to get order lifecycle:', { ordinalId, error });
+            }
+          }
+
+          logger.info('Order confirmed on blockchain:', { 
+            txid: result.transaction_id,
+            blockNum: tx.processed.block_num,
+            ordinalId: ordinalId || null
+          });
+        } else {
+          throw new Error('Order placement failed or no transaction ID returned');
+        }
       }
 
       const result = await module.execute(decision.action, decision.params);
@@ -574,12 +666,36 @@ export class AgentGuide {
   }
 
   private async validateDEXOrder(params: Record<string, unknown>): Promise<void> {
-    // Add validation logic here
-    if (!params.marketSymbol || !params.side || !params.type || !params.quantity) {
-      throw new Error('Missing required order parameters');
+    const requiredParams = [
+      'marketSymbol', 'side', 'type', 'quantity', 
+      'price', 'market_id'
+    ];
+    
+    const missingParams = requiredParams.filter(param => !params[param]);
+    
+    if (missingParams.length > 0) {
+      throw new Error(`Missing required order parameters: ${missingParams.join(', ')}`);
     }
 
-    // Add additional validation as needed
-    logger.info('Order parameters validated successfully');
+    if (typeof params.price !== 'number' || params.price <= 0) {
+      throw new Error('Invalid price: must be a positive number');
+    }
+
+    if (typeof params.market_id !== 'number') {
+      throw new Error('Invalid market_id: must be a number');
+    }
+
+    const validSides = ['BUY', 'SELL'];
+    const validTypes = ['LIMIT', 'MARKET'];
+
+    if (!validSides.includes(String(params.side).toUpperCase())) {
+      throw new Error(`Invalid side: must be one of ${validSides.join(', ')}`);
+    }
+
+    if (!validTypes.includes(String(params.type).toUpperCase())) {
+      throw new Error(`Invalid type: must be one of ${validTypes.join(', ')}`);
+    }
+
+    logger.info('Order parameters validated successfully', { params });
   }
 }

@@ -58,11 +58,6 @@ async function main() {
       // Then initialize
       await dexModule.initialize();
       
-      const testMarket = await dexModule.getMarketData('XPR_XMD');
-      logger.info('DEX Module Test:', { 
-        marketPrice: testMarket?.price,
-        marketStatus: 'Connected'
-      });
     } catch (dexError) {
       logger.error('DEX Module Failed:', { error: dexError });
       process.exit(1);
@@ -81,10 +76,12 @@ async function main() {
     const guide = new AgentGuide(modules);
     await guide.initialize();
 
-    // Handle user input
-    if (process.argv.includes('--auto')) {
-      logger.info('Running in autonomous mode');
-      await guide.start('', true);
+    // Use a more specific flag name
+    const forceTrade = process.argv.includes('--force-trade') || process.argv.includes('--trade-anyway');
+    
+    if (process.argv.includes('--auto') || forceTrade) {
+      logger.info('Running in autonomous mode', { forceTrade });
+      await guide.start('analyze markets', true, forceTrade);
     } else {
       const rl = readline.createInterface({
         input: process.stdin,
@@ -96,7 +93,7 @@ async function main() {
       });
 
       rl.close();
-      await guide.start(answer, false);
+      await guide.start(answer, false, forceTrade);
     }
 
   } catch (error) {

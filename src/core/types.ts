@@ -30,4 +30,42 @@ export interface ModuleActionResult {
     params: Record<string, unknown>;
     result: any;
     timestamp?: number;
+}
+
+export interface AIDecision {
+  module: string;
+  action: string;
+  params: OrderParams | Record<string, unknown>;
+  reasoning?: string;
+  forced?: boolean;
+}
+
+export interface OrderParams {
+  marketSymbol: string;
+  market_id: number;
+  side: 'BUY' | 'SELL';
+  type: 'MARKET' | 'LIMIT';
+  order_type: number;
+  quantity: number;
+  price: number;
+  trigger_price: string;
+  fill_type: 'GTC' | 'IOC' | 'FOK';
+  account?: string;
+  order_id?: string;
+  ordinal_order_id?: string;
+}
+
+export interface NativeTransaction {
+  processed: {
+    id: string;
+    block_num: number;
+    block_time: string;
+    action_traces: Array<{
+      inline_traces?: Array<{
+        data?: {
+          ordinal_order_id?: string;
+        };
+      }>;
+    }>;
+  };
 } 

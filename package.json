@@ -7,10 +7,8 @@
   "scripts": {
     "bot": "tsc --noEmit && node --no-warnings=ExperimentalWarning --loader ts-node/esm ./src/index.ts",
     "bot:auto": "tsc --noEmit && node --no-warnings=ExperimentalWarning --loader ts-node/esm ./src/index.ts --auto",
-    "bot:test": "cross-env NODE_ENV=test npm run bot",
     "lint": "eslint . --ext .js",
     "lint:fix": "eslint . --fix --ext .js",
-    "test": "mocha",
     "types:db": "bunx supabase gen types typescript --project-id \"lbryfqffclmnhfmnspye\" --schema public > ./src/interfaces/db_scheme.ts",
     "types:bc": "bunx abi2ts betxpr -t > ./src/interfaces/betxpr.ts && bunx abi2ts xtokens -t > ./src/interfaces/xtokens.ts "
   },
