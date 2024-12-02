@@ -39,23 +39,11 @@ interface AIResponse {
   style?: string;
 }
 
-interface AIHelper {
-  // Add properties/methods as needed
-}
-
-interface ModuleMemory {
-  recentActions: Array<{
-    timestamp: number;
-    action: string;
-  }>;
-  // Add other memory properties as needed
-}
-
 const logger = getLogger();
 
 export class AgentGuide {
   private modules: Map<string, any>;
-  private helper: AIHelper;
+  private helper: HelperAgent;
   private moduleMemories: Map<string, ModuleMemory>;
 
   constructor(modules: Record<string, any>) {
